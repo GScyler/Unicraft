@@ -1,6 +1,5 @@
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace MinecraftEngine
 {
@@ -107,8 +106,13 @@ namespace MinecraftEngine
 
         private void HandleRaycastAndBreaking()
         {
-            var mouse = Mouse.current;
-            if (mouse == null) return;
+            var input = InputManager.Instance;
+            if (input == null || !input.IsPlayerMapActive) return;
+
+            bool attackHeld = input.Attack.IsPressed();
+            bool attackDown = input.Attack.WasPressedThisFrame();
+            bool useItemDown = input.UseItem.WasPressedThisFrame();
+            bool useItemHeld = input.UseItem.IsPressed();
 
             bool isLookingAtBlock = VoxelRaycast(playerCamera.transform.position, playerCamera.transform.forward, reachDistance, out int3 hitBlock, out int3 hitNormal);
 
@@ -122,7 +126,7 @@ namespace MinecraftEngine
                 _selectionOutline.SetActive(false);
             }
 
-            if (mouse.leftButton.isPressed)
+            if (attackHeld)
             {
                 if (isLookingAtBlock)
                 {
@@ -154,19 +158,11 @@ namespace MinecraftEngine
 
                             if (_breakProgress >= _totalBreakTime)
                             {
-                                // ИСПРАВЛЕНИЕ: Вызываем ItemManager для спавна дропа!
                                 if (ItemManager.Instance != null)
                                 {
-                                    // Точка спавна - центр сломанного блока
                                     Vector3 spawnPos = new Vector3(hitBlock.x + 0.5f, hitBlock.y + 0.5f, hitBlock.z + 0.5f);
-
-                                    // Узнаем, что должно выпасть из этого блока (DropItemBlockID)
                                     byte dropID = BlockDatabase.Instance.GetBlock(blockID).dropItemBlockID;
-
-                                    // Если дроп не настроен в SO, выпадает сам блок (например, Земля)
-                                    // Если выпадает 0 (Воздух) - ничего не дропаем
                                     if (dropID == 0 && blockID != 0) dropID = blockID;
-
                                     ItemManager.Instance.SpawnItem(dropID, spawnPos);
                                 }
 
@@ -194,7 +190,7 @@ namespace MinecraftEngine
                 ResetBreaking();
             }
 
-            if (mouse.rightButton.wasPressedThisFrame || (mouse.rightButton.isPressed && Time.time - _lastPlaceTime >= placeCooldown))
+            if (useItemDown || (useItemHeld && Time.time - _lastPlaceTime >= placeCooldown))
             {
                 if (isLookingAtBlock)
                 {
@@ -269,37 +265,13 @@ namespace MinecraftEngine
 
                 if (tMaxX < tMaxY)
                 {
-                    if (tMaxX < tMaxZ)
-                    {
-                        x += stepX;
-                        dist = tMaxX;
-                        tMaxX += tDeltaX;
-                        hitNormal = new int3(-stepX, 0, 0);
-                    }
-                    else
-                    {
-                        z += stepZ;
-                        dist = tMaxZ;
-                        tMaxZ += tDeltaZ;
-                        hitNormal = new int3(0, 0, -stepZ);
-                    }
+                    if (tMaxX < tMaxZ) { x += stepX; dist = tMaxX; tMaxX += tDeltaX; hitNormal = new int3(-stepX, 0, 0); }
+                    else { z += stepZ; dist = tMaxZ; tMaxZ += tDeltaZ; hitNormal = new int3(0, 0, -stepZ); }
                 }
                 else
                 {
-                    if (tMaxY < tMaxZ)
-                    {
-                        y += stepY;
-                        dist = tMaxY;
-                        tMaxY += tDeltaY;
-                        hitNormal = new int3(0, -stepY, 0);
-                    }
-                    else
-                    {
-                        z += stepZ;
-                        dist = tMaxZ;
-                        tMaxZ += tDeltaZ;
-                        hitNormal = new int3(0, 0, -stepZ);
-                    }
+                    if (tMaxY < tMaxZ) { y += stepY; dist = tMaxY; tMaxY += tDeltaY; hitNormal = new int3(0, -stepY, 0); }
+                    else { z += stepZ; dist = tMaxZ; tMaxZ += tDeltaZ; hitNormal = new int3(0, 0, -stepZ); }
                 }
             }
             return false;

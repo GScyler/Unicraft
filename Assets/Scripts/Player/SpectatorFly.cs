@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace MinecraftEngine
 {
@@ -31,31 +30,26 @@ namespace MinecraftEngine
 
         private void Update()
         {
-            var mouse = Mouse.current;
-            var kb = Keyboard.current;
+            var input = InputManager.Instance;
+            if (input == null || !input.IsSpectatorMapActive) return;
 
-            if (mouse == null || kb == null) return;
-
-            Vector2 delta = mouse.delta.ReadValue();
+            Vector2 delta = input.SpectatorLook.ReadValue<Vector2>();
             _yaw += delta.x * mouseSensitivity;
             _pitch -= delta.y * mouseSensitivity;
             _pitch = Mathf.Clamp(_pitch, -89.9f, 89.9f);
 
             transform.localEulerAngles = new Vector3(_pitch, _yaw, 0f);
 
-            float horizontal = 0f;
-            float vertical = 0f;
+            Vector2 moveInput = input.SpectatorMove.ReadValue<Vector2>();
+            float horizontal = moveInput.x;
+            float vertical = moveInput.y;
             float up = 0f;
 
-            if (kb.wKey.isPressed) vertical += 1f;
-            if (kb.sKey.isPressed) vertical -= 1f;
-            if (kb.aKey.isPressed) horizontal -= 1f;
-            if (kb.dKey.isPressed) horizontal += 1f;
-            if (kb.spaceKey.isPressed) up += 1f;
-            if (kb.leftShiftKey.isPressed) up -= 1f;
+            if (input.SpectatorAscend.IsPressed()) up += 1f;
+            if (input.SpectatorDescend.IsPressed()) up -= 1f;
 
             float currentSpeed = flySpeed;
-            if (kb.leftCtrlKey.isPressed) currentSpeed *= sprintMultiplier;
+            if (input.SpectatorSpeedBoost.IsPressed()) currentSpeed *= sprintMultiplier;
 
             Vector3 move = transform.right * horizontal + transform.forward * vertical + Vector3.up * up;
             transform.position += move * currentSpeed * Time.deltaTime;

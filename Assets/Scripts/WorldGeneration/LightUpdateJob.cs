@@ -26,7 +26,9 @@ namespace MinecraftEngine
 
         [ReadOnly] public NativeArray<BlockStruct> blockDatabase;
 
-        public bool forceSunlightRecalculation;
+        // resetLightMap: если true — обнулить lightMap и пересчитать sunlight с нуля.
+        //                если false — оставить текущий lightMap, только добавить BFS от соседей.
+        public bool resetLightMap;
 
         public void Execute()
         {
@@ -36,9 +38,14 @@ namespace MinecraftEngine
 
             NativeList<LightNode> bfsQueue = new NativeList<LightNode>(VoxelSettings.ChunkVolume / 2, Allocator.Temp);
 
-            // 1. ПЕРЕСЧЕТ СОЛНЦА (Вертикальный луч)
-            if (forceSunlightRecalculation)
+            // 1. Сброс + sunlight (только если resetLightMap)
+            if (resetLightMap)
             {
+                for (int i = 0; i < lightMap.Length; i++)
+                {
+                    lightMap[i] = 0;
+                }
+
                 for (int x = 0; x < chunkWidth; x++)
                 {
                     for (int z = 0; z < chunkDepth; z++)
@@ -52,7 +59,7 @@ namespace MinecraftEngine
 
                             if (blockID != 0 && blockDatabase[blockID].isSolid)
                             {
-                                currentLight = 0; // Твердый блок перекрывает солнце
+                                currentLight = 0;
                             }
                             else if (blockID == 11 || blockID == 9)
                             {
@@ -60,13 +67,7 @@ namespace MinecraftEngine
                                 else currentLight = 0;
                             }
 
-                            // ИСПРАВЛЕНИЕ: Мы записываем свет ТОЛЬКО в полупрозрачные блоки/воздух!
-                            // В твердых блоках всегда будет храниться 0.
-                            if (blockID != 0 && blockDatabase[blockID].isSolid)
-                            {
-                                lightMap[index] = 0;
-                            }
-                            else
+                            if (blockID == 0 || !blockDatabase[blockID].isSolid)
                             {
                                 lightMap[index] = currentLight;
                             }
@@ -86,6 +87,9 @@ namespace MinecraftEngine
             }
 
             // 3. ЧТЕНИЕ СВЕТА ОТ СОСЕДЕЙ (С краев чанка)
+            // НЕ вычитаем 1 здесь — CheckAndQueueLight уже вычтет absorption.
+            // Edge-блок соседа и edge-блок текущего чанка — это ДВА РАЗНЫХ блока,
+            // между ними расстояние 1 блок, absorption считается в CheckAndQueueLight.
             for (int y = 0; y < chunkHeight; y++)
             {
                 for (int i = 0; i < chunkWidth; i++)
@@ -93,16 +97,16 @@ namespace MinecraftEngine
                     int sliceIndex = i + chunkWidth * y;
 
                     if (hasRight && rightLight[sliceIndex] > 1)
-                        CheckAndQueueLight((chunkWidth - 1) + chunkWidth * (y + chunkHeight * i), (byte)(rightLight[sliceIndex] - 1), ref bfsQueue);
+                        CheckAndQueueLight((chunkWidth - 1) + chunkWidth * (y + chunkHeight * i), rightLight[sliceIndex], ref bfsQueue);
 
                     if (hasLeft && leftLight[sliceIndex] > 1)
-                        CheckAndQueueLight(0 + chunkWidth * (y + chunkHeight * i), (byte)(leftLight[sliceIndex] - 1), ref bfsQueue);
+                        CheckAndQueueLight(0 + chunkWidth * (y + chunkHeight * i), leftLight[sliceIndex], ref bfsQueue);
 
                     if (hasFront && frontLight[sliceIndex] > 1)
-                        CheckAndQueueLight(i + chunkWidth * (y + chunkHeight * (chunkDepth - 1)), (byte)(frontLight[sliceIndex] - 1), ref bfsQueue);
+                        CheckAndQueueLight(i + chunkWidth * (y + chunkHeight * (chunkDepth - 1)), frontLight[sliceIndex], ref bfsQueue);
 
                     if (hasBack && backLight[sliceIndex] > 1)
-                        CheckAndQueueLight(i + chunkWidth * (y + chunkHeight * 0), (byte)(backLight[sliceIndex] - 1), ref bfsQueue);
+                        CheckAndQueueLight(i + chunkWidth * (y + chunkHeight * 0), backLight[sliceIndex], ref bfsQueue);
                 }
             }
 

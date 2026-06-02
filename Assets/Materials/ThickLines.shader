@@ -2,106 +2,109 @@ Shader "MinecraftEngine/ThickLines"
 {
     Properties
     {
-        _Color ("Line Color", Color) = (0, 0, 0, 0.4)
+        _Color     ("Line Color", Color) = (0, 0, 0, 0.4)
         _Thickness ("Line Thickness (Pixels)", Float) = 2.0
     }
+
     SubShader
     {
-        Tags { "RenderType"="Transparent" "Queue"="Overlay" }
+        Tags
+        {
+            "RenderType" = "Transparent"
+            "Queue" = "Overlay"
+            "RenderPipeline" = "UniversalPipeline"
+        }
         LOD 100
 
         Pass
         {
+            Name "ThickLines"
+            Tags { "LightMode" = "SRPDefaultUnlit" }
+
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
             ZTest LEqual
             Cull Off
 
-            CGPROGRAM
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma geometry geom
             #pragma fragment frag
+            #pragma target 4.0
 
-            #include "UnityCG.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct appdata
+            struct Attributes
             {
-                float4 vertex : POSITION;
+                float4 positionOS : POSITION;
             };
 
-            struct v2g
+            struct VertToGeo
             {
-                float4 pos : SV_POSITION;
+                float4 positionHCS : SV_POSITION;
             };
 
-            struct g2f
+            struct GeoToFrag
             {
-                float4 pos : SV_POSITION;
+                float4 positionHCS : SV_POSITION;
             };
 
-            float4 _Color;
-            float _Thickness;
+            CBUFFER_START(UnityPerMaterial)
+                float4 _Color;
+                float  _Thickness;
+            CBUFFER_END
 
-            v2g vert (appdata v)
+            VertToGeo vert(Attributes IN)
             {
-                v2g o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                return o;
+                VertToGeo OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                return OUT;
             }
 
-            // Geometry Shader: Превращает линию (2 точки) в прямоугольник (4 точки) 
-            // с толщиной ровно _Thickness пикселей экрана.
             [maxvertexcount(4)]
-            void geom(line v2g input[2], inout TriangleStream<g2f> outStream)
+            void geom(line VertToGeo input[2], inout TriangleStream<GeoToFrag> outStream)
             {
-                float2 p0 = input[0].pos.xy / input[0].pos.w;
-                float2 p1 = input[1].pos.xy / input[1].pos.w;
+                float2 p0 = input[0].positionHCS.xy / input[0].positionHCS.w;
+                float2 p1 = input[1].positionHCS.xy / input[1].positionHCS.w;
 
                 float2 dir = p1 - p0;
                 float len = length(dir);
                 if (len < 0.0001) return;
-
                 dir /= len;
 
-                // Перпендикуляр к линии в пространстве экрана
                 float2 normal = float2(-dir.y, dir.x);
-
-                // Корректируем по соотношению сторон экрана (_ScreenParams.xy)
                 normal.x *= _ScreenParams.y / _ScreenParams.x;
 
-                // Сдвиг на половину толщины (в координатах нормализованного экрана [-1, 1])
                 float2 offset = normal * (_Thickness / _ScreenParams.y);
 
-                g2f o;
+                GeoToFrag o;
 
-                // Вершина 1
-                o.pos = input[0].pos;
-                o.pos.xy += offset * o.pos.w;
+                o.positionHCS = input[0].positionHCS;
+                o.positionHCS.xy += offset * o.positionHCS.w;
                 outStream.Append(o);
 
-                // Вершина 2
-                o.pos = input[0].pos;
-                o.pos.xy -= offset * o.pos.w;
+                o.positionHCS = input[0].positionHCS;
+                o.positionHCS.xy -= offset * o.positionHCS.w;
                 outStream.Append(o);
 
-                // Вершина 3
-                o.pos = input[1].pos;
-                o.pos.xy += offset * o.pos.w;
+                o.positionHCS = input[1].positionHCS;
+                o.positionHCS.xy += offset * o.positionHCS.w;
                 outStream.Append(o);
 
-                // Вершина 4
-                o.pos = input[1].pos;
-                o.pos.xy -= offset * o.pos.w;
+                o.positionHCS = input[1].positionHCS;
+                o.positionHCS.xy -= offset * o.positionHCS.w;
                 outStream.Append(o);
 
                 outStream.RestartStrip();
             }
 
-            fixed4 frag (g2f i) : SV_Target
+            half4 frag(GeoToFrag IN) : SV_Target
             {
                 return _Color;
             }
-            ENDCG
+            ENDHLSL
         }
     }
+
+    FallBack Off
 }

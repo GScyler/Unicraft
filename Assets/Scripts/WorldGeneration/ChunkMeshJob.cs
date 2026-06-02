@@ -32,6 +32,7 @@ namespace MinecraftEngine
         [ReadOnly] public NativeArray<byte> leftLight;
 
         public bool hasFront, hasBack, hasRight, hasLeft;
+        public bool hasLightFront, hasLightBack, hasLightRight, hasLightLeft;
 
         [ReadOnly] public NativeArray<BlockStruct> blockDatabase;
 
@@ -219,10 +220,10 @@ namespace MinecraftEngine
         {
             if (neighborPos.y < 0 || neighborPos.y >= VoxelSettings.ChunkHeight) return 15; // Небо всегда светлое
 
-            if (neighborPos.x < 0) { if (hasLeft) return leftLight[GetSliceIndex(neighborPos.z, neighborPos.y)]; else return 0; }
-            else if (neighborPos.x >= VoxelSettings.ChunkWidth) { if (hasRight) return rightLight[GetSliceIndex(neighborPos.z, neighborPos.y)]; else return 0; }
-            else if (neighborPos.z < 0) { if (hasBack) return backLight[GetSliceIndex(neighborPos.x, neighborPos.y)]; else return 0; }
-            else if (neighborPos.z >= VoxelSettings.ChunkDepth) { if (hasFront) return frontLight[GetSliceIndex(neighborPos.x, neighborPos.y)]; else return 0; }
+            if (neighborPos.x < 0) { if (hasLightLeft) return leftLight[GetSliceIndex(neighborPos.z, neighborPos.y)]; else return 0; }
+            else if (neighborPos.x >= VoxelSettings.ChunkWidth) { if (hasLightRight) return rightLight[GetSliceIndex(neighborPos.z, neighborPos.y)]; else return 0; }
+            else if (neighborPos.z < 0) { if (hasLightBack) return backLight[GetSliceIndex(neighborPos.x, neighborPos.y)]; else return 0; }
+            else if (neighborPos.z >= VoxelSettings.ChunkDepth) { if (hasLightFront) return frontLight[GetSliceIndex(neighborPos.x, neighborPos.y)]; else return 0; }
 
             return lightMap[GetIndex(neighborPos.x, neighborPos.y, neighborPos.z)];
         }

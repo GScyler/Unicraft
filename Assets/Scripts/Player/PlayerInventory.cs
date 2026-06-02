@@ -28,7 +28,6 @@ namespace MinecraftEngine
 
         private void Start()
         {
-            // Убрал стартовые стаки по 64 блока. Теперь вы появляетесь с пустым инвентарем и должны всё добыть!
             for (int i = 0; i < 9; i++)
             {
                 hotbar[i] = new ItemStack(0, 0);
@@ -52,37 +51,30 @@ namespace MinecraftEngine
 
         private void HandleScrollInput()
         {
-            var mouse = UnityEngine.InputSystem.Mouse.current;
-            var kb = UnityEngine.InputSystem.Keyboard.current;
+            var input = InputManager.Instance;
+            if (input == null || !input.IsPlayerMapActive) return;
 
-            if (mouse != null)
+            // Scroll wheel
+            float scroll = input.ScrollHotbar.ReadValue<Vector2>().y;
+            if (scroll > 0)
             {
-                float scroll = mouse.scroll.ReadValue().y;
-                if (scroll > 0)
-                {
-                    selectedSlot--;
-                    if (selectedSlot < 0) selectedSlot = 8;
-                    UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot);
-                }
-                else if (scroll < 0)
-                {
-                    selectedSlot++;
-                    if (selectedSlot > 8) selectedSlot = 0;
-                    UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot);
-                }
+                selectedSlot--;
+                if (selectedSlot < 0) selectedSlot = 8;
+                UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot);
+            }
+            else if (scroll < 0)
+            {
+                selectedSlot++;
+                if (selectedSlot > 8) selectedSlot = 0;
+                UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot);
             }
 
-            if (kb != null)
+            // Number keys
+            int hotbarKey = input.GetHotbarPressed();
+            if (hotbarKey >= 0)
             {
-                if (kb.digit1Key.wasPressedThisFrame) { selectedSlot = 0; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit2Key.wasPressedThisFrame) { selectedSlot = 1; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit3Key.wasPressedThisFrame) { selectedSlot = 2; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit4Key.wasPressedThisFrame) { selectedSlot = 3; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit5Key.wasPressedThisFrame) { selectedSlot = 4; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit6Key.wasPressedThisFrame) { selectedSlot = 5; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit7Key.wasPressedThisFrame) { selectedSlot = 6; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit8Key.wasPressedThisFrame) { selectedSlot = 7; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
-                if (kb.digit9Key.wasPressedThisFrame) { selectedSlot = 8; UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot); }
+                selectedSlot = hotbarKey;
+                UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot);
             }
         }
 
@@ -104,31 +96,27 @@ namespace MinecraftEngine
             }
         }
 
-        // Логика добавления предмета в инвентарь (когда вы его подбираете с земли)
         public bool AddItem(byte itemID, int amount)
         {
-            // 1. Пытаемся найти уже существующий неполный стак такого же предмета
             for (int i = 0; i < 9; i++)
             {
                 if (hotbar[i].ItemID == itemID && hotbar[i].Amount < 64)
                 {
-                    // Кладем в этот стак сколько влезет
                     int spaceLeft = 64 - hotbar[i].Amount;
                     if (amount <= spaceLeft)
                     {
                         hotbar[i].Amount += (byte)amount;
                         UIManager.Instance.UpdateHotbarUI(hotbar, selectedSlot);
-                        return true; // Предмет полностью поместился
+                        return true;
                     }
                     else
                     {
                         hotbar[i].Amount = 64;
-                        amount -= spaceLeft; // Остаток попытаемся положить в следующий стак
+                        amount -= spaceLeft;
                     }
                 }
             }
 
-            // 2. Если стаков нет или они заполнились, ищем пустой слот
             if (amount > 0)
             {
                 for (int i = 0; i < 9; i++)
@@ -142,7 +130,6 @@ namespace MinecraftEngine
                 }
             }
 
-            // Инвентарь полностью забит, предмет остается лежать на земле
             return false;
         }
     }

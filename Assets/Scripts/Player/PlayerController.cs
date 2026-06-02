@@ -1,6 +1,5 @@
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace MinecraftEngine
 {
@@ -56,8 +55,10 @@ namespace MinecraftEngine
 
         private void Update()
         {
-            var kb = Keyboard.current;
-            if (kb != null && kb.f3Key.wasPressedThisFrame && debugCameraObject != null)
+            var input = InputManager.Instance;
+            if (input == null || input.ToggleDebug == null) return;
+
+            if (input.ToggleDebug.WasPressedThisFrame() && debugCameraObject != null)
             {
                 ToggleSpectatorMode();
             }
@@ -87,6 +88,7 @@ namespace MinecraftEngine
                 GetComponent<PlayerInteraction>().enabled = false;
 
                 worldManager.viewerCamera = debugCamComponent;
+                InputManager.Instance.EnableSpectatorMap();
             }
             else
             {
@@ -98,6 +100,7 @@ namespace MinecraftEngine
                 GetComponent<PlayerInteraction>().enabled = true;
 
                 worldManager.viewerCamera = playerCamera;
+                InputManager.Instance.EnablePlayerMap();
 
                 _pitch = playerCamera.transform.localEulerAngles.x;
                 _yaw = transform.eulerAngles.y;
@@ -106,10 +109,11 @@ namespace MinecraftEngine
 
         private void HandleMouseLook()
         {
-            var mouse = Mouse.current;
-            if (mouse == null) return;
+            var input = InputManager.Instance;
+            if (input == null || !input.IsPlayerMapActive) return;
 
-            Vector2 delta = mouse.delta.ReadValue();
+            Vector2 delta = input.Look.ReadValue<Vector2>();
+
             _yaw += delta.x * mouseSensitivity;
             _pitch -= delta.y * mouseSensitivity;
             _pitch = Mathf.Clamp(_pitch, -89.9f, 89.9f);
@@ -120,25 +124,24 @@ namespace MinecraftEngine
 
         private void HandleMovement()
         {
-            var kb = Keyboard.current;
-            if (kb == null) return;
+            var input = InputManager.Instance;
+            if (input == null || !input.IsPlayerMapActive) return;
 
-            float horizontal = 0f;
-            float vertical = 0f;
+            Vector2 moveInput = input.Move.ReadValue<Vector2>();
+            float horizontal = moveInput.x;
+            float vertical = moveInput.y;
 
-            if (kb.wKey.isPressed) vertical += 1f;
-            if (kb.sKey.isPressed) vertical -= 1f;
-            if (kb.aKey.isPressed) horizontal -= 1f;
-            if (kb.dKey.isPressed) horizontal += 1f;
+            bool sneakPressed = input.Sneak.IsPressed();
+            bool sprintPressed = input.Sprint.IsPressed();
+            bool jumpPressed = input.Jump.IsPressed();
 
-            if (kb.leftShiftKey.isPressed)
+            if (sneakPressed)
             {
                 _isSneaking = true;
                 _currentPlayerHeight = 1.5f;
             }
             else
             {
-                // ИСПРАВЛЕНИЕ: Проверяем, есть ли блоки в пространстве от 1.5 до 1.8 метров (куда должна встать голова)
                 if (!CanStandUp())
                 {
                     _isSneaking = true;
@@ -157,7 +160,7 @@ namespace MinecraftEngine
                 Time.deltaTime * 15f
             );
 
-            float targetSpeed = _isSneaking ? sneakSpeed : (kb.leftCtrlKey.isPressed ? sprintSpeed : walkSpeed);
+            float targetSpeed = _isSneaking ? sneakSpeed : (sprintPressed ? sprintSpeed : walkSpeed);
             Vector3 targetMoveInput = (transform.right * horizontal + transform.forward * vertical).normalized * targetSpeed;
 
             float interp = _isGrounded ? (targetMoveInput.sqrMagnitude > 0 ? acceleration : deceleration) : airControl;
@@ -167,7 +170,7 @@ namespace MinecraftEngine
             {
                 _velocity.y = 0f;
 
-                if (kb.spaceKey.isPressed)
+                if (jumpPressed)
                 {
                     _velocity.y = jumpForce;
                     _isGrounded = false;
@@ -245,7 +248,6 @@ namespace MinecraftEngine
             transform.position = currentPos;
         }
 
-        // Выделенный метод для проверки "потолка"
         private bool CanStandUp()
         {
             float shrink = 0.05f;
@@ -253,27 +255,16 @@ namespace MinecraftEngine
 
             int minX = Mathf.FloorToInt(pos.x - _playerWidth / 2f + shrink);
             int maxX = Mathf.FloorToInt(pos.x + _playerWidth / 2f - shrink);
-
-            // Начинаем проверку ровно над головой "сидячего" игрока
             int minY = Mathf.FloorToInt(pos.y + 1.51f);
             int maxY = Mathf.FloorToInt(pos.y + 1.8f - shrink);
-
             int minZ = Mathf.FloorToInt(pos.z - _playerWidth / 2f + shrink);
             int maxZ = Mathf.FloorToInt(pos.z + _playerWidth / 2f - shrink);
 
             for (int y = minY; y <= maxY; y++)
-            {
                 for (int x = minX; x <= maxX; x++)
-                {
                     for (int z = minZ; z <= maxZ; z++)
-                    {
                         if (worldManager.IsSolidBlockAt(new Vector3(x, y, z)))
-                        {
                             return false;
-                        }
-                    }
-                }
-            }
             return true;
         }
 
@@ -290,18 +281,10 @@ namespace MinecraftEngine
             int maxZ = Mathf.FloorToInt(newPos.z + _playerWidth / 2f - shrink);
 
             for (int y = minY; y <= maxY; y++)
-            {
                 for (int x = minX; x <= maxX; x++)
-                {
                     for (int z = minZ; z <= maxZ; z++)
-                    {
                         if (worldManager.IsSolidBlockAt(new Vector3(x, y, z)))
-                        {
                             return true;
-                        }
-                    }
-                }
-            }
             return false;
         }
 
@@ -313,11 +296,9 @@ namespace MinecraftEngine
             Vector3 minP = transform.position + new Vector3(-_playerWidth / 2f + shrink, toleranceY, -_playerWidth / 2f + shrink);
             Vector3 maxP = transform.position + new Vector3(_playerWidth / 2f - shrink, _currentPlayerHeight - shrink, _playerWidth / 2f - shrink);
 
-            bool intersectX = blockCoord.x + 1 > minP.x && blockCoord.x < maxP.x;
-            bool intersectY = blockCoord.y + 1 > minP.y && blockCoord.y < maxP.y;
-            bool intersectZ = blockCoord.z + 1 > minP.z && blockCoord.z < maxP.z;
-
-            return intersectX && intersectY && intersectZ;
+            return (blockCoord.x + 1 > minP.x && blockCoord.x < maxP.x) &&
+                   (blockCoord.y + 1 > minP.y && blockCoord.y < maxP.y) &&
+                   (blockCoord.z + 1 > minP.z && blockCoord.z < maxP.z);
         }
     }
 }

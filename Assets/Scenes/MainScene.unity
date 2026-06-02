@@ -529,7 +529,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.PlayerInteraction
   worldManager: {fileID: 1942698079}
   playerCamera: {fileID: 330585545}
-  playerInventory: {fileID: 0}
+  playerInventory: {fileID: 1137672559}
   reachDistance: 5
   breakCooldown: 0.25
   placeCooldown: 0.2
@@ -841,6 +841,51 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
+--- !u!1 &1496474891
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1496474893}
+  - component: {fileID: 1496474892}
+  m_Layer: 0
+  m_Name: InputManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1496474892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496474891}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8300208ac6258142b8d21394adbbc98, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.InputManager
+  inputActions: {fileID: -944628639613478452, guid: b23f39b279d6caa4ca39ff06cf4a01ac, type: 3}
+--- !u!4 &1496474893
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496474891}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1654076199
 GameObject:
   m_ObjectHideFlags: 0
@@ -1091,7 +1136,7 @@ MonoBehaviour:
   biomeDatabase: {fileID: 1973825102}
   worldSeed: 148761
   viewDistance: 8
-  minLight: 0.02
+  minLight: 0.05
   maxLight: 1
   lightGamma: 1.5
 --- !u!1 &1973825097
@@ -1163,5 +1208,6 @@ SceneRoots:
   - {fileID: 1137672556}
   - {fileID: 1884982888}
   - {fileID: 303926677}
+  - {fileID: 1496474893}
   - {fileID: 1291248436}
   - {fileID: 1434257561}

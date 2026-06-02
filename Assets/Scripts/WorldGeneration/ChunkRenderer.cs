@@ -152,7 +152,7 @@ namespace MinecraftEngine
             return slice;
         }
 
-        public void StartLightJob(bool forceRecalculation = false)
+        public void StartLightJob(bool resetLight = true, bool readNeighbors = true)
         {
             if (IsGeneratingLight)
             {
@@ -160,17 +160,24 @@ namespace MinecraftEngine
                 IsGeneratingLight = false;
             }
 
-            // ИСПРАВЛЕНИЕ ЗАГЛУШЕК СВЕТА В МЕНЕДЖЕРЕ
-            // Теперь мы берем соседей только если они HasGeneratedLight
-            bool hF = _worldManager.TryGetChunkMap(new int2(Coord.x, Coord.y + 1), out _, out NativeArray<byte> frontLightFull);
-            bool hB = _worldManager.TryGetChunkMap(new int2(Coord.x, Coord.y - 1), out _, out NativeArray<byte> backLightFull);
-            bool hR = _worldManager.TryGetChunkMap(new int2(Coord.x + 1, Coord.y), out _, out NativeArray<byte> rightLightFull);
-            bool hL = _worldManager.TryGetChunkMap(new int2(Coord.x - 1, Coord.y), out _, out NativeArray<byte> leftLightFull);
+            bool hF = false, hB = false, hR = false, hL = false;
+            NativeArray<byte> frontLightFull = LightMap;
+            NativeArray<byte> backLightFull = LightMap;
+            NativeArray<byte> rightLightFull = LightMap;
+            NativeArray<byte> leftLightFull = LightMap;
 
-            if (!hF) frontLightFull = LightMap;
-            if (!hB) backLightFull = LightMap;
-            if (!hR) rightLightFull = LightMap;
-            if (!hL) leftLightFull = LightMap;
+            if (readNeighbors)
+            {
+                hF = _worldManager.TryGetChunkLightMap(new int2(Coord.x, Coord.y + 1), out frontLightFull);
+                hB = _worldManager.TryGetChunkLightMap(new int2(Coord.x, Coord.y - 1), out backLightFull);
+                hR = _worldManager.TryGetChunkLightMap(new int2(Coord.x + 1, Coord.y), out rightLightFull);
+                hL = _worldManager.TryGetChunkLightMap(new int2(Coord.x - 1, Coord.y), out leftLightFull);
+
+                if (!hF) frontLightFull = LightMap;
+                if (!hB) backLightFull = LightMap;
+                if (!hR) rightLightFull = LightMap;
+                if (!hL) leftLightFull = LightMap;
+            }
 
             if (_frontLight.IsCreated) _frontLight.Dispose();
             if (_backLight.IsCreated) _backLight.Dispose();
@@ -195,9 +202,7 @@ namespace MinecraftEngine
                 leftLight = _leftLight,
                 hasLeft = hL,
                 blockDatabase = _blockDatabase,
-
-                // ВАЖНО: Мы пересчитываем солнце всегда, когда чанк впервые генерируется (!HasGeneratedLight)
-                forceSunlightRecalculation = forceRecalculation || !HasGeneratedLight
+                resetLightMap = resetLight
             };
 
             _lightJobHandle = lightJob.Schedule();
@@ -226,15 +231,27 @@ namespace MinecraftEngine
             _cutoutTriangles.Clear();
             _transparentTriangles.Clear();
 
-            bool hF = _worldManager.TryGetChunkMap(new int2(Coord.x, Coord.y + 1), out NativeArray<ushort> fFull, out NativeArray<byte> fLightFull);
-            bool hB = _worldManager.TryGetChunkMap(new int2(Coord.x, Coord.y - 1), out NativeArray<ushort> bFull, out NativeArray<byte> bLightFull);
-            bool hR = _worldManager.TryGetChunkMap(new int2(Coord.x + 1, Coord.y), out NativeArray<ushort> rFull, out NativeArray<byte> rLightFull);
-            bool hL = _worldManager.TryGetChunkMap(new int2(Coord.x - 1, Coord.y), out NativeArray<ushort> lFull, out NativeArray<byte> lLightFull);
+            // VoxelMap соседей — для определения видимости граней (face culling)
+            bool hF = _worldManager.TryGetChunkMap(new int2(Coord.x, Coord.y + 1), out NativeArray<ushort> fFull, out _);
+            bool hB = _worldManager.TryGetChunkMap(new int2(Coord.x, Coord.y - 1), out NativeArray<ushort> bFull, out _);
+            bool hR = _worldManager.TryGetChunkMap(new int2(Coord.x + 1, Coord.y), out NativeArray<ushort> rFull, out _);
+            bool hL = _worldManager.TryGetChunkMap(new int2(Coord.x - 1, Coord.y), out NativeArray<ushort> lFull, out _);
 
-            if (!hF) { fFull = VoxelMap; fLightFull = LightMap; }
-            if (!hB) { bFull = VoxelMap; bLightFull = LightMap; }
-            if (!hR) { rFull = VoxelMap; rLightFull = LightMap; }
-            if (!hL) { lFull = VoxelMap; lLightFull = LightMap; }
+            if (!hF) { fFull = VoxelMap; }
+            if (!hB) { bFull = VoxelMap; }
+            if (!hR) { rFull = VoxelMap; }
+            if (!hL) { lFull = VoxelMap; }
+
+            // LightMap соседей — только если свет реально сгенерирован
+            bool hFL = _worldManager.TryGetChunkLightMap(new int2(Coord.x, Coord.y + 1), out NativeArray<byte> fLightFull);
+            bool hBL = _worldManager.TryGetChunkLightMap(new int2(Coord.x, Coord.y - 1), out NativeArray<byte> bLightFull);
+            bool hRL = _worldManager.TryGetChunkLightMap(new int2(Coord.x + 1, Coord.y), out NativeArray<byte> rLightFull);
+            bool hLL = _worldManager.TryGetChunkLightMap(new int2(Coord.x - 1, Coord.y), out NativeArray<byte> lLightFull);
+
+            if (!hFL) { fLightFull = LightMap; }
+            if (!hBL) { bLightFull = LightMap; }
+            if (!hRL) { rLightFull = LightMap; }
+            if (!hLL) { lLightFull = LightMap; }
 
             if (_frontSlice.IsCreated) _frontSlice.Dispose();
             if (_backSlice.IsCreated) _backSlice.Dispose();
@@ -251,10 +268,10 @@ namespace MinecraftEngine
             _rightSlice = hR ? ExtractSlice(rFull, true, 0) : new NativeArray<ushort>(1, Allocator.Persistent);
             _leftSlice = hL ? ExtractSlice(lFull, true, 15) : new NativeArray<ushort>(1, Allocator.Persistent);
 
-            _frontLight = hF ? ExtractLightSlice(fLightFull, false, 0) : new NativeArray<byte>(1, Allocator.Persistent);
-            _backLight = hB ? ExtractLightSlice(bLightFull, false, 15) : new NativeArray<byte>(1, Allocator.Persistent);
-            _rightLight = hR ? ExtractLightSlice(rLightFull, true, 0) : new NativeArray<byte>(1, Allocator.Persistent);
-            _leftLight = hL ? ExtractLightSlice(lLightFull, true, 15) : new NativeArray<byte>(1, Allocator.Persistent);
+            _frontLight = hFL ? ExtractLightSlice(fLightFull, false, 0) : new NativeArray<byte>(1, Allocator.Persistent);
+            _backLight = hBL ? ExtractLightSlice(bLightFull, false, 15) : new NativeArray<byte>(1, Allocator.Persistent);
+            _rightLight = hRL ? ExtractLightSlice(rLightFull, true, 0) : new NativeArray<byte>(1, Allocator.Persistent);
+            _leftLight = hLL ? ExtractLightSlice(lLightFull, true, 15) : new NativeArray<byte>(1, Allocator.Persistent);
 
             ChunkMeshJob meshJob = new ChunkMeshJob
             {
@@ -268,15 +285,19 @@ namespace MinecraftEngine
                 frontSlice = _frontSlice,
                 frontLight = _frontLight,
                 hasFront = hF,
+                hasLightFront = hFL,
                 backSlice = _backSlice,
                 backLight = _backLight,
                 hasBack = hB,
+                hasLightBack = hBL,
                 rightSlice = _rightSlice,
                 rightLight = _rightLight,
                 hasRight = hR,
+                hasLightRight = hRL,
                 leftSlice = _leftSlice,
                 leftLight = _leftLight,
                 hasLeft = hL,
+                hasLightLeft = hLL,
 
                 blockDatabase = _blockDatabase,
                 chunkWorldPosition = new float2(Coord.x * VoxelSettings.ChunkWidth, Coord.y * VoxelSettings.ChunkDepth),
@@ -422,6 +443,11 @@ namespace MinecraftEngine
             if (IsGeneratingMesh) { _meshJobHandle.Complete(); IsGeneratingMesh = false; }
         }
 
+        /// <summary>
+        /// Отменяет чанк И завершает все running jobs.
+        /// После вызова чанк помечен IsCancelled=true и больше
+        /// не пройдёт через pipeline. Используется при выгрузке чанка.
+        /// </summary>
         public void CancelAndCompleteJobs()
         {
             IsCancelled = true;

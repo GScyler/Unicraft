@@ -125,14 +125,54 @@ namespace MinecraftEngine
         {
             if (_activeChunks.TryGetValue(coord, out ChunkRenderer chunk) && chunk.HasGeneratedTerrain)
             {
-                // ИСПРАВЛЕНИЕ: Вызываем актуальный метод
-                chunk.CancelAndCompleteJobs();
+                // Завершаем ТОЛЬКО terrain job для безопасного чтения VoxelMap.
+                // Light и Mesh jobs не трогаем — они завершатся естественно.
+                if (chunk.IsGeneratingTerrain)
+                {
+                    chunk.CompleteTerrainJob();
+                }
 
                 voxelMap = chunk.VoxelMap;
+
+                // LightMap отдаём ТОЛЬКО если light реально был сгенерирован.
+                // Иначе caller получит hasFront=false и не будет читать чужой пустой LightMap.
+                if (chunk.HasGeneratedLight)
+                {
+                    // Если light job ещё running — завершаем его
+                    if (chunk.IsGeneratingLight)
+                    {
+                        chunk.CompleteLightJob();
+                    }
+                    lightMap = chunk.LightMap;
+                    return true;
+                }
+
+                // Terrain есть, но light нет — отдаём VoxelMap, но lightMap = default.
+                // Caller увидит что lightMap невалиден и подставит fallback.
                 lightMap = chunk.LightMap;
                 return true;
             }
             voxelMap = default;
+            lightMap = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Проверяет, доступны ли данные ОСВЕЩЕНИЯ соседнего чанка.
+        /// Возвращает true только если terrain И light полностью завершены.
+        /// </summary>
+        public bool TryGetChunkLightMap(int2 coord, out NativeArray<byte> lightMap)
+        {
+            if (_activeChunks.TryGetValue(coord, out ChunkRenderer chunk)
+                && chunk.HasGeneratedTerrain && chunk.HasGeneratedLight)
+            {
+                if (chunk.IsGeneratingLight)
+                {
+                    chunk.CompleteLightJob();
+                }
+                lightMap = chunk.LightMap;
+                return true;
+            }
             lightMap = default;
             return false;
         }
@@ -189,15 +229,70 @@ namespace MinecraftEngine
 
                 if (currentID == (byte)BlockType.Bedrock && newID == (byte)BlockType.Air) return;
 
-                chunk.ModifyBlock(localPos, blockData, true);
+                if (chunk.IsGeneratingMesh) { chunk.CompleteMeshAndApply(); }
+                if (chunk.IsGeneratingLight) { chunk.CompleteLightJob(); }
+
+                int vIndex = localPos.x + VoxelSettings.ChunkWidth * (localPos.y + VoxelSettings.ChunkHeight * localPos.z);
+                if (chunk.VoxelMap[vIndex] == blockData) return;
+                chunk.VoxelMap[vIndex] = blockData;
 
                 if (_meshGenerationQueue.Contains(chunk)) _meshGenerationQueue.Remove(chunk);
                 if (_lightGenerationQueue.Contains(chunk)) _lightGenerationQueue.Remove(chunk);
 
-                if (localPos.x == 0) UpdateNeighbourChunk(new int2(chunk.Coord.x - 1, chunk.Coord.y));
-                if (localPos.x == VoxelSettings.ChunkWidth - 1) UpdateNeighbourChunk(new int2(chunk.Coord.x + 1, chunk.Coord.y));
-                if (localPos.z == 0) UpdateNeighbourChunk(new int2(chunk.Coord.x, chunk.Coord.y - 1));
-                if (localPos.z == VoxelSettings.ChunkDepth - 1) UpdateNeighbourChunk(new int2(chunk.Coord.x, chunk.Coord.y + 1));
+                int2[] neighborCoords = new int2[]
+                {
+                    new int2(chunk.Coord.x - 1, chunk.Coord.y),
+                    new int2(chunk.Coord.x + 1, chunk.Coord.y),
+                    new int2(chunk.Coord.x, chunk.Coord.y - 1),
+                    new int2(chunk.Coord.x, chunk.Coord.y + 1)
+                };
+
+                // Подготавливаем соседей
+                foreach (int2 nc in neighborCoords)
+                {
+                    if (_activeChunks.TryGetValue(nc, out ChunkRenderer n) && n.HasGeneratedTerrain)
+                    {
+                        if (n.IsGeneratingMesh) { n.CompleteMeshAndApply(); }
+                        if (n.IsGeneratingLight) { n.CompleteLightJob(); }
+                        if (_meshGenerationQueue.Contains(n)) _meshGenerationQueue.Remove(n);
+                        if (_lightGenerationQueue.Contains(n)) _lightGenerationQueue.Remove(n);
+                    }
+                }
+
+                // === LIGHT UPDATE ===
+                // 1. Текущий чанк: reset + sunlight + BFS от соседей.
+                //    Соседи ещё имеют старый lightMap — но он валиден для их геометрии.
+                chunk.StartLightJob(resetLight: true, readNeighbors: true);
+                chunk.CompleteLightJob();
+
+                // 2. Соседи: reset + sunlight + BFS (читают обновлённый текущий чанк).
+                foreach (int2 nc in neighborCoords)
+                {
+                    if (_activeChunks.TryGetValue(nc, out ChunkRenderer n) && n.HasGeneratedTerrain)
+                    {
+                        n.StartLightJob(resetLight: true, readNeighbors: true);
+                        n.CompleteLightJob();
+                    }
+                }
+
+                // 3. Текущий чанк ещё раз — подхватывает обновлённый свет от соседей.
+                chunk.StartLightJob(resetLight: true, readNeighbors: true);
+                chunk.CompleteLightJob();
+
+                // Mesh: все LightMap-ы теперь полностью актуальны
+                chunk.StartMeshJob();
+                chunk.CompleteMeshAndApply();
+
+                foreach (int2 nc in neighborCoords)
+                {
+                    if (_activeChunks.TryGetValue(nc, out ChunkRenderer n) && n.HasGeneratedTerrain)
+                    {
+                        n.StartMeshJob();
+                        n.CompleteMeshAndApply();
+                    }
+                }
+
+
             }
         }
 
@@ -305,17 +400,30 @@ namespace MinecraftEngine
 
         private bool HasAllLightNeighbors(int2 coord)
         {
+            int loadDistance = !IsGameStarted ? _spawnLoadDistance : viewDistance;
+
             bool hasRight = _activeChunks.TryGetValue(new int2(coord.x + 1, coord.y), out ChunkRenderer r);
             bool hasLeft = _activeChunks.TryGetValue(new int2(coord.x - 1, coord.y), out ChunkRenderer l);
             bool hasFront = _activeChunks.TryGetValue(new int2(coord.x, coord.y + 1), out ChunkRenderer f);
             bool hasBack = _activeChunks.TryGetValue(new int2(coord.x, coord.y - 1), out ChunkRenderer b);
 
-            bool rightSafe = !hasRight || (r.HasGeneratedLight);
-            bool leftSafe = !hasLeft || (l.HasGeneratedLight);
-            bool frontSafe = !hasFront || (f.HasGeneratedLight);
-            bool backSafe = !hasBack || (b.HasGeneratedLight);
+            // Сосед считается "safe" если:
+            // 1) Его нет в _activeChunks (за пределами мира — нечего ждать)
+            // 2) Он есть и уже прошёл light stage
+            // 3) Он есть, но является border-чанком (distance > loadDistance),
+            //    который НИКОГДА не получит light — ждать его бессмысленно
+            bool rightSafe = !hasRight || r.HasGeneratedLight || IsBorderChunk(new int2(coord.x + 1, coord.y), loadDistance);
+            bool leftSafe = !hasLeft || l.HasGeneratedLight || IsBorderChunk(new int2(coord.x - 1, coord.y), loadDistance);
+            bool frontSafe = !hasFront || f.HasGeneratedLight || IsBorderChunk(new int2(coord.x, coord.y + 1), loadDistance);
+            bool backSafe = !hasBack || b.HasGeneratedLight || IsBorderChunk(new int2(coord.x, coord.y - 1), loadDistance);
 
             return rightSafe && leftSafe && frontSafe && backSafe;
+        }
+
+        private bool IsBorderChunk(int2 coord, int loadDistance)
+        {
+            return math.abs(coord.x - _currentViewerChunkCoord.x) > loadDistance ||
+                   math.abs(coord.y - _currentViewerChunkCoord.y) > loadDistance;
         }
 
         private void ProcessQueues()

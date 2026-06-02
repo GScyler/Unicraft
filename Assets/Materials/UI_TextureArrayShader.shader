@@ -4,71 +4,138 @@ Shader "MinecraftEngine/UI_TextureArrayShader"
     {
         _MainTex ("Texture Array", 2DArray) = "white" {}
     }
+
     SubShader
     {
-        Tags { "RenderType"="Opaque" "Queue"="Geometry" "LightMode"="ForwardBase" }
+        Tags
+        {
+            "RenderType" = "Opaque"
+            "Queue" = "Geometry"
+            "RenderPipeline" = "UniversalPipeline"
+        }
         LOD 100
-
-        ZWrite On
-        Cull Back
-        Blend Off
 
         Pass
         {
-            CGPROGRAM
+            Name "UIBlockLit"
+            Tags { "LightMode" = "UniversalForward" }
+
+            ZWrite On
+            Cull Back
+            Blend Off
+
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma require 2darray
 
-            #include "UnityCG.cginc"
-            #include "UnityLightingCommon.cginc" // ДОБАВЛЕНО ДЛЯ ОСВЕЩЕНИЯ
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            struct appdata
+            struct Attributes
             {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL; // Принимаем нормали от Unity
-                float3 uv : TEXCOORD0; 
+                float4 positionOS : POSITION;
+                float3 normalOS   : NORMAL;
+                float3 uv         : TEXCOORD0;
             };
 
-            struct v2f
+            struct Varyings
             {
-                float4 vertex : SV_POSITION;
-                float3 uv : TEXCOORD0;
-                float3 diffuse : COLOR; // Передаем рассчитанный свет во фрагментный шейдер
+                float4 positionHCS : SV_POSITION;
+                float3 uv          : TEXCOORD0;
+                float3 diffuse     : TEXCOORD1;
             };
 
-            UNITY_DECLARE_TEX2DARRAY(_MainTex);
+            TEXTURE2D_ARRAY(_MainTex);
+            SAMPLER(sampler_MainTex);
 
-            v2f vert (appdata v)
+            CBUFFER_START(UnityPerMaterial)
+            CBUFFER_END
+
+            Varyings vert(Attributes IN)
             {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv; 
-                
-                // --- РАСЧЕТ ОСВЕЩЕНИЯ (Lambert) ---
-                // Получаем мировую нормаль
-                half3 worldNormal = UnityObjectToWorldNormal(v.normal);
-                
-                // _WorldSpaceLightPos0 - это вектор направления нашего источника света (UILight)
-                half nl = max(0, dot(worldNormal, _WorldSpaceLightPos0.xyz));
-                
-                // Базовый Ambient цвет (чтобы в тени куб не был абсолютно черным)
-                o.diffuse = float3(0.4, 0.4, 0.4) + _LightColor0.rgb * nl * 0.8;
+                Varyings OUT;
 
-                return o;
+                VertexPositionInputs vpi = GetVertexPositionInputs(IN.positionOS.xyz);
+                OUT.positionHCS = vpi.positionCS;
+                OUT.uv = IN.uv;
+
+                VertexNormalInputs vni = GetVertexNormalInputs(IN.normalOS);
+                float3 worldNormal = vni.normalWS;
+
+                Light mainLight = GetMainLight();
+
+                half nl = saturate(dot(worldNormal, mainLight.direction));
+
+                OUT.diffuse = float3(0.4, 0.4, 0.4) + mainLight.color.rgb * nl * 0.8;
+
+                return OUT;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            half4 frag(Varyings IN) : SV_Target
             {
-                fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_MainTex, i.uv);
-                clip(col.a - 0.1); 
-                
-                // Умножаем текстуру на рассчитанный свет
-                col.rgb *= i.diffuse;
-                
+                half4 col = SAMPLE_TEXTURE2D_ARRAY(_MainTex, sampler_MainTex, IN.uv.xy, IN.uv.z);
+
+                clip(col.a - 0.1);
+
+                col.rgb *= IN.diffuse;
+
                 return col;
             }
-            ENDCG
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+
+            ZWrite On
+            ColorMask 0
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex DepthVert
+            #pragma fragment DepthFrag
+            #pragma require 2darray
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 uv         : TEXCOORD0;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float3 uv          : TEXCOORD0;
+            };
+
+            TEXTURE2D_ARRAY(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            CBUFFER_START(UnityPerMaterial)
+            CBUFFER_END
+
+            Varyings DepthVert(Attributes IN)
+            {
+                Varyings OUT;
+                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.uv = IN.uv;
+                return OUT;
+            }
+
+            half4 DepthFrag(Varyings IN) : SV_Target
+            {
+                half4 col = SAMPLE_TEXTURE2D_ARRAY(_MainTex, sampler_MainTex, IN.uv.xy, IN.uv.z);
+                clip(col.a - 0.1);
+                return 0;
+            }
+            ENDHLSL
         }
     }
+
+    FallBack Off
 }
