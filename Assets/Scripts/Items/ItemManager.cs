@@ -15,7 +15,7 @@ namespace MinecraftEngine
         public Material chunkMaterial;
 
         private Queue<ItemEntity> _pool = new Queue<ItemEntity>();
-        private Dictionary<byte, Mesh> _dropMeshCache = new Dictionary<byte, Mesh>();
+        private Dictionary<ushort, Mesh> _dropMeshCache = new Dictionary<ushort, Mesh>();
 
         private void Awake()
         {
@@ -23,7 +23,7 @@ namespace MinecraftEngine
             else Destroy(gameObject);
         }
 
-        public void SpawnItem(byte blockID, Vector3 position)
+        public void SpawnItem(ushort blockID, Vector3 position)
         {
             if (blockID == 0) return;
 
@@ -61,7 +61,7 @@ namespace MinecraftEngine
             _pool.Enqueue(item);
         }
 
-        private Mesh GetOrCreateDropMesh(byte blockID)
+        private Mesh GetOrCreateDropMesh(ushort blockID)
         {
             if (_dropMeshCache.TryGetValue(blockID, out Mesh cachedMesh)) return cachedMesh;
 

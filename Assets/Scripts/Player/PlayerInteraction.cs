@@ -161,7 +161,7 @@ namespace MinecraftEngine
                                 if (ItemManager.Instance != null)
                                 {
                                     Vector3 spawnPos = new Vector3(hitBlock.x + 0.5f, hitBlock.y + 0.5f, hitBlock.z + 0.5f);
-                                    byte dropID = BlockDatabase.Instance.GetBlock(blockID).dropItemBlockID;
+                                    ushort dropID = BlockDatabase.Instance.GetBlock(blockID).dropItemBlockID;
                                     if (dropID == 0 && blockID != 0) dropID = blockID;
                                     ItemManager.Instance.SpawnItem(dropID, spawnPos);
                                 }
@@ -197,7 +197,7 @@ namespace MinecraftEngine
                     int3 placePosition = hitBlock + hitNormal;
                     if (_playerController != null && _playerController.IsBlockIntersectingPlayer(placePosition)) return;
 
-                    byte selectedBlock = playerInventory != null ? playerInventory.GetSelectedBlockID() : (byte)0;
+                    ushort selectedBlock = playerInventory != null ? playerInventory.GetSelectedBlockID() : (ushort)0;
 
                     if (selectedBlock != 0)
                     {

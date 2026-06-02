@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: Calcite
   blockID: 21
-  textureIndices: 7e0000007e0000007e0000007e0000007e0000007e000000
+  textureIndices: 890000008900000089000000890000008900000089000000
   isTransparent: 0
   isSolid: 1
+  lightEmission: 0
+  opacity: 15
   hardness: 1.5
-  bestTool: 0
+  blastResistance: 6
+  bestTool: 1
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 0

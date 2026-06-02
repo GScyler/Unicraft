@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: GrassBlock
   blockID: 4
-  textureIndices: 5601000056010000590100001b0100005601000056010000
+  textureIndices: 930100009301000096010000500100009301000093010000
   isTransparent: 0
   isSolid: 1
+  lightEmission: 0
+  opacity: 15
   hardness: 0.5
-  bestTool: 0
+  blastResistance: 6
+  bestTool: 3
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 2

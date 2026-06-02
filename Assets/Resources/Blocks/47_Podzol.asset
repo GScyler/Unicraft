@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: Podzol
   blockID: 47
-  textureIndices: 3502000035020000360200001b0100003502000035020000
+  textureIndices: 860200008602000087020000500100008602000086020000
   isTransparent: 0
   isSolid: 1
+  lightEmission: 0
+  opacity: 15
   hardness: 0.5
-  bestTool: 0
+  blastResistance: 6
+  bestTool: 3
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 2

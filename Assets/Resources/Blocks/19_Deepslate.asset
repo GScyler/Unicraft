@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: Deepslate
   blockID: 19
-  textureIndices: 00010000000100000b0100000b0100000001000000010000
+  textureIndices: 350100003501000040010000400100003501000035010000
   isTransparent: 0
   isSolid: 1
+  lightEmission: 0
+  opacity: 15
   hardness: 3
-  bestTool: 0
+  blastResistance: 6
+  bestTool: 1
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 11

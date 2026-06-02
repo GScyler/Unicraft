@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: DeepslateDiamondOre
   blockID: 46
-  textureIndices: 040100000401000004010000040100000401000004010000
+  textureIndices: 390100003901000039010000390100003901000039010000
   isTransparent: 0
   isSolid: 1
-  hardness: 1.5
-  bestTool: 0
+  lightEmission: 0
+  opacity: 15
+  hardness: 3
+  blastResistance: 6
+  bestTool: 1
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 11

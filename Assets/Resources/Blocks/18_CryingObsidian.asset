@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: CryingObsidian
   blockID: 18
-  textureIndices: d2000000d2000000d2000000d2000000d2000000d2000000
+  textureIndices: 070100000701000007010000070100000701000007010000
   isTransparent: 0
   isSolid: 1
-  hardness: 30
-  bestTool: 0
+  lightEmission: 10
+  opacity: 15
+  hardness: 50
+  blastResistance: 1200
+  bestTool: 1
+  harvestLevel: 3
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 0

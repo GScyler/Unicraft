@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: OakLog
   blockID: 8
-  textureIndices: 040200000402000005020000050200000402000004020000
+  textureIndices: 410200004102000042020000420200004102000041020000
   isTransparent: 0
   isSolid: 1
-  hardness: 1.5
-  bestTool: 0
+  lightEmission: 0
+  opacity: 15
+  hardness: 2
+  blastResistance: 6
+  bestTool: 2
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 1
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 1

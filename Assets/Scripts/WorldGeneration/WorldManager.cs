@@ -76,6 +76,13 @@ namespace MinecraftEngine
                     if (blockDatabase != null && BlockDatabase.Instance == null) blockDatabase.Initialize();
                     if (biomeDatabase != null && BiomeDatabase.Instance == null) biomeDatabase.Initialize();
 
+                    // Initialize ItemDatabase after BlockDatabase (it auto-generates block items)
+                    if (BlockDatabase.Instance != null && ItemDatabase.Instance == null)
+                    {
+                        var itemDb = FindAnyObjectByType<ItemDatabase>();
+                        if (itemDb != null) itemDb.Initialize();
+                    }
+
                     return;
                 }
             }
@@ -227,7 +234,7 @@ namespace MinecraftEngine
                 byte currentID = (byte)(chunk.VoxelMap[index] & 0x0FFF);
                 byte newID = (byte)(blockData & 0x0FFF);
 
-                if (currentID == (byte)BlockType.Bedrock && newID == (byte)BlockType.Air) return;
+                if (currentID == (ushort)BlockType.Bedrock && newID == (ushort)BlockType.Air) return;
 
                 if (chunk.IsGeneratingMesh) { chunk.CompleteMeshAndApply(); }
                 if (chunk.IsGeneratingLight) { chunk.CompleteLightJob(); }

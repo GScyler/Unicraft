@@ -40,8 +40,8 @@ namespace MinecraftEngine
         private MeshRenderer _itemMeshRenderer;
         private RenderTexture[] _slotTextures = new RenderTexture[9];
 
-        private System.Collections.Generic.Dictionary<byte, Mesh> _blockMeshCache = new System.Collections.Generic.Dictionary<byte, Mesh>();
-        private System.Collections.Generic.Dictionary<byte, Texture2D> _shadedIconCache = new System.Collections.Generic.Dictionary<byte, Texture2D>();
+        private System.Collections.Generic.Dictionary<ushort, Mesh> _blockMeshCache = new System.Collections.Generic.Dictionary<ushort, Mesh>();
+        private System.Collections.Generic.Dictionary<ushort, Texture2D> _shadedIconCache = new System.Collections.Generic.Dictionary<ushort, Texture2D>();
 
         private const int UIRenderLayer = 31;
 
@@ -363,7 +363,23 @@ namespace MinecraftEngine
             }
         }
 
-        private void RenderBlockToTexture(byte blockID, int slotIndex)
+        /// <summary>
+        /// Public API: renders a 3D block icon and returns the cached Texture2D.
+        /// Used by ContainerScreen for inventory slot icons.
+        /// </summary>
+        public Texture2D RenderBlockIcon(ushort blockID)
+        {
+            if (_shadedIconCache.TryGetValue(blockID, out Texture2D cached))
+                return cached;
+
+            // Render it by calling internal method with dummy slot, then return cached
+            RenderBlockToTexture(blockID, 0);
+
+            _shadedIconCache.TryGetValue(blockID, out Texture2D result);
+            return result;
+        }
+
+        private void RenderBlockToTexture(ushort blockID, int slotIndex)
         {
             if (_shadedIconCache.TryGetValue(blockID, out Texture2D cachedTex))
             {
@@ -426,7 +442,7 @@ namespace MinecraftEngine
             _slotImages[slotIndex].texture = tex2D;
         }
 
-        private Mesh GetBlockMesh(byte blockID)
+        private Mesh GetBlockMesh(ushort blockID)
         {
             if (_blockMeshCache.TryGetValue(blockID, out Mesh cachedMesh)) return cachedMesh;
 

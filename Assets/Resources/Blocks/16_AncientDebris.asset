@@ -17,6 +17,17 @@ MonoBehaviour:
   textureIndices: 0d0000000d0000000e0000000e0000000d0000000d000000
   isTransparent: 0
   isSolid: 1
+  lightEmission: 0
+  opacity: 15
   hardness: 30
-  bestTool: 0
+  blastResistance: 1200
+  bestTool: 1
+  harvestLevel: 3
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 0

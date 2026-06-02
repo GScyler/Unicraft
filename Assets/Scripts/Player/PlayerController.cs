@@ -66,6 +66,10 @@ namespace MinecraftEngine
             if (worldManager != null && !worldManager.IsGameStarted) return;
             if (debugCameraObject != null && debugCameraObject.activeSelf) return;
 
+            // Don't process movement/camera when inventory is open
+            var inventory = GetComponent<PlayerInventory>();
+            if (inventory != null && inventory.IsInventoryOpen) return;
+
             HandleMouseLook();
             HandleMovement();
         }

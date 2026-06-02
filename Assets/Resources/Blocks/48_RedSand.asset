@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: RedSand
   blockID: 48
-  textureIndices: 7c0200007c0200007c0200007c0200007c0200007c020000
+  textureIndices: ce020000ce020000ce020000ce020000ce020000ce020000
   isTransparent: 0
   isSolid: 1
+  lightEmission: 0
+  opacity: 15
   hardness: 0.5
-  bestTool: 0
+  blastResistance: 6
+  bestTool: 3
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 1
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 3

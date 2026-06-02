@@ -5,9 +5,9 @@ namespace MinecraftEngine
 {
     public class ItemEntity : MonoBehaviour
     {
-        public byte ItemID;
+        public ushort ItemID;
         public int Amount = 1;
-        
+
         [Header("Physics Settings")]
         private Vector3 _velocity;
         private float _gravity = -20f;
@@ -19,7 +19,7 @@ namespace MinecraftEngine
         public Transform modelTransform; // Внутренний объект с MeshRenderer
         private float _bobOffset;
 
-        public void Initialize(byte id, Vector3 spawnPosition, Mesh itemMesh, Material itemMaterial)
+        public void Initialize(ushort id, Vector3 spawnPosition, Mesh itemMesh, Material itemMaterial)
         {
             ItemID = id;
             Amount = 1; // По умолчанию падает 1 блок
@@ -34,7 +34,7 @@ namespace MinecraftEngine
             );
 
             _isGrounded = false;
-            
+
             // Настраиваем визуальную часть
             MeshFilter mf = modelTransform.GetComponent<MeshFilter>();
             if (mf == null) mf = modelTransform.gameObject.AddComponent<MeshFilter>();
@@ -46,7 +46,7 @@ namespace MinecraftEngine
 
             // В Minecraft лежащие предметы в 4 раза меньше обычных блоков (Scale 0.25)
             modelTransform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
-            
+
             _bobOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f); // Случайное начало анимации
         }
 

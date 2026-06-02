@@ -14,9 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.BlockData
   blockName: DeepslateCopperOre
   blockID: 41
-  textureIndices: 030100000301000003010000030100000301000003010000
+  textureIndices: 380100003801000038010000380100003801000038010000
   isTransparent: 0
   isSolid: 1
-  hardness: 1.5
-  bestTool: 0
+  lightEmission: 0
+  opacity: 15
+  hardness: 3
+  blastResistance: 6
+  bestTool: 1
+  harvestLevel: 0
   dropItemBlockID: 0
+  isGravityAffected: 0
+  isFlammable: 0
+  flammability: 0
+  fireSpread: 0
+  isInteractable: 0
+  shape: 0
+  soundCategory: 11

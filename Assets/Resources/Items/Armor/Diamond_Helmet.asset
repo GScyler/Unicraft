@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0be5145330d16e43a6b287846d72fce, type: 3}
+  m_Name: Diamond_Helmet
+  m_EditorClassIdentifier: Assembly-CSharp::MinecraftEngine.ArmorData
+  itemID: 1087
+  itemName: Diamond Helmet
+  itemDescription: 
+  type: 3
+  maxStackSize: 1
+  blockToPlace: 0
+  attackDamage: 1
+  attackSpeed: 4
+  icon: {fileID: 0}
+  slot: 0
+  material: 4
+  defensePoints: 3
+  toughness: 2
+  knockbackResistance: 0
+  maxDurability: 363
