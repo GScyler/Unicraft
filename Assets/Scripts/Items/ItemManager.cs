@@ -7,7 +7,7 @@ namespace MinecraftEngine
 {
     public class ItemManager : MonoBehaviour
     {
-        public static ItemManager Instance;
+        public static ItemManager Instance { get; private set; }
 
         public WorldManager worldManager;
         public Transform playerTransform;
@@ -17,21 +17,41 @@ namespace MinecraftEngine
         private Queue<ItemEntity> _pool = new Queue<ItemEntity>();
         private Dictionary<ushort, Mesh> _dropMeshCache = new Dictionary<ushort, Mesh>();
 
+        private float _lastDropTime = -999f;
+        private const float DropPickupDelay = 0.5f;
+        private const float DefaultPickupDelay = 1.0f;
+
         private void Awake()
         {
             if (Instance == null) Instance = this;
             else Destroy(gameObject);
         }
 
-        public void SpawnItem(ushort blockID, Vector3 position)
+        public void SpawnItem(ushort blockID, Vector3 position, float pickupDelay = -1f, Vector3? velocity = null)
         {
             if (blockID == 0) return;
 
             ItemEntity item = GetFromPool();
-
             Mesh itemMesh = GetOrCreateDropMesh(blockID);
 
-            item.Initialize(blockID, position, itemMesh, chunkMaterial);
+            if (pickupDelay < 0f)
+            {
+                pickupDelay = GetEffectivePickupDelay();
+            }
+
+            item.Initialize(blockID, position, itemMesh, chunkMaterial, pickupDelay, velocity);
+        }
+
+        private float GetEffectivePickupDelay()
+        {
+            if (Time.time - _lastDropTime < 0.1f)
+                return DropPickupDelay;
+            return DefaultPickupDelay;
+        }
+
+        public void OnInventoryDrop()
+        {
+            _lastDropTime = Time.time;
         }
 
         private ItemEntity GetFromPool()
@@ -67,18 +87,17 @@ namespace MinecraftEngine
 
             Mesh mesh = new Mesh();
 
-            // ИСПРАВЛЕНИЕ: Точно такая же разметка (28 байт), как в ChunkRenderer
             var layout = new[]
             {
-                new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3), // 12 байт
-                new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4), // 4 байта
-                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 3) // 12 байт (Итого 28 байт)
+                new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+                new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 3)
             };
 
             VoxelVertex[] voxelVerts = new VoxelVertex[24];
             int[] triangles = new int[36];
 
-            BlockData bData = BlockDatabase.Instance.GetBlock(blockID);
+            BlockData bData = BlockDatabase.Instance != null ? BlockDatabase.Instance.GetBlock(blockID) : null;
             int vIndex = 0;
             int tIndex = 0;
 
@@ -91,12 +110,10 @@ namespace MinecraftEngine
                 Vector3 v2 = (Vector3)VoxelData.VoxelVertices[VoxelData.VoxelTriangles[p * 4 + 2]] - new Vector3(0.5f, 0.5f, 0.5f);
                 Vector3 v3 = (Vector3)VoxelData.VoxelVertices[VoxelData.VoxelTriangles[p * 4 + 3]] - new Vector3(0.5f, 0.5f, 0.5f);
 
-                // Окрас биома для травы
                 Color32 blockColor = new Color32(255, 255, 255, 255);
                 if (blockID == 4 && p == 2) blockColor = new Color32(121, 192, 90, 255);
                 if (blockID == 10) blockColor = new Color32(121, 192, 90, 255);
 
-                // ИСПРАВЛЕНИЕ: Добавлен цвет в генерацию вершин
                 voxelVerts[vIndex + 0] = new VoxelVertex { position = v0, uv = new float3(0, 0, texIdx), color = blockColor };
                 voxelVerts[vIndex + 1] = new VoxelVertex { position = v1, uv = new float3(0, 1, texIdx), color = blockColor };
                 voxelVerts[vIndex + 2] = new VoxelVertex { position = v2, uv = new float3(1, 0, texIdx), color = blockColor };

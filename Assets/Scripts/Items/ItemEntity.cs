@@ -8,34 +8,42 @@ namespace MinecraftEngine
         public ushort ItemID;
         public int Amount = 1;
 
-        [Header("Physics Settings")]
         private Vector3 _velocity;
         private float _gravity = -20f;
         private bool _isGrounded;
-        private float _pickupDelay = 1.0f; // Нельзя подобрать сразу после разрушения
         private float _spawnTime;
+        private float _pickupDelay = 1.0f;
+        private float _customPickupDelay = -1f;
 
-        [Header("Animation")]
-        public Transform modelTransform; // Внутренний объект с MeshRenderer
+        public Transform modelTransform;
         private float _bobOffset;
 
-        public void Initialize(ushort id, Vector3 spawnPosition, Mesh itemMesh, Material itemMaterial)
+        public void Initialize(ushort id, Vector3 spawnPosition, Mesh itemMesh, Material itemMaterial, float pickupDelay = -1f, Vector3? overrideVelocity = null)
         {
             ItemID = id;
-            Amount = 1; // По умолчанию падает 1 блок
+            Amount = 1;
             transform.position = spawnPosition;
             _spawnTime = Time.time;
 
-            // Выбрасываем предмет в случайном направлении, немного вверх
-            _velocity = new Vector3(
-                UnityEngine.Random.Range(-2f, 2f),
-                UnityEngine.Random.Range(3f, 5f),
-                UnityEngine.Random.Range(-2f, 2f)
-            );
+            if (pickupDelay >= 0f)
+                _customPickupDelay = pickupDelay;
+
+            if (overrideVelocity.HasValue)
+            {
+                _velocity = overrideVelocity.Value;
+            }
+            else
+            {
+                // Default: slightly upward + random spread
+                _velocity = new Vector3(
+                    UnityEngine.Random.Range(-0.5f, 0.5f),
+                    UnityEngine.Random.Range(2.5f, 4f),
+                    UnityEngine.Random.Range(-0.5f, 0.5f)
+                );
+            }
 
             _isGrounded = false;
 
-            // Настраиваем визуальную часть
             MeshFilter mf = modelTransform.GetComponent<MeshFilter>();
             if (mf == null) mf = modelTransform.gameObject.AddComponent<MeshFilter>();
             mf.mesh = itemMesh;
@@ -44,15 +52,23 @@ namespace MinecraftEngine
             if (mr == null) mr = modelTransform.gameObject.AddComponent<MeshRenderer>();
             mr.material = itemMaterial;
 
-            // В Minecraft лежащие предметы в 4 раза меньше обычных блоков (Scale 0.25)
             modelTransform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
 
-            _bobOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f); // Случайное начало анимации
+            _bobOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        }
+
+        public void SetPickupDelay(float delay)
+        {
+            _customPickupDelay = delay;
+        }
+
+        private float GetPickupDelay()
+        {
+            return _customPickupDelay >= 0f ? _customPickupDelay : _pickupDelay;
         }
 
         private void Update()
         {
-            // --- ФИЗИКА ---
             if (!_isGrounded)
             {
                 _velocity.y += _gravity * Time.deltaTime;
@@ -60,22 +76,18 @@ namespace MinecraftEngine
 
             Vector3 nextPos = transform.position + _velocity * Time.deltaTime;
 
-            // Простая воксельная коллизия (проверяем только точку под центром предмета)
-            WorldManager wm = ItemManager.Instance.worldManager;
+            WorldManager wm = ItemManager.Instance != null ? ItemManager.Instance.worldManager : null;
             if (wm != null)
             {
-                // Проверяем пол (сдвиг вниз на размер иконки)
                 if (wm.IsSolidBlockAt(nextPos + new Vector3(0, -0.125f, 0)))
                 {
                     _isGrounded = true;
                     _velocity = Vector3.zero;
-                    // Выравниваем по поверхности блока
                     nextPos.y = Mathf.Floor(nextPos.y + 0.125f) + 0.125f;
                 }
                 else
                 {
                     _isGrounded = false;
-                    // Трение в воздухе (чтобы не улетел далеко)
                     _velocity.x = Mathf.Lerp(_velocity.x, 0, Time.deltaTime * 2f);
                     _velocity.z = Mathf.Lerp(_velocity.z, 0, Time.deltaTime * 2f);
                 }
@@ -83,27 +95,25 @@ namespace MinecraftEngine
 
             transform.position = nextPos;
 
-            // --- АНИМАЦИЯ (Левитация и вращение) ---
             float bobbing = Mathf.Sin(Time.time * 3f + _bobOffset) * 0.05f;
-            modelTransform.localPosition = new Vector3(0, bobbing + 0.15f, 0); // Парит чуть выше пола
-            modelTransform.Rotate(0, 90f * Time.deltaTime, 0); // Медленно крутится по оси Y
+            modelTransform.localPosition = new Vector3(0, bobbing + 0.15f, 0);
+            modelTransform.Rotate(0, 90f * Time.deltaTime, 0);
 
-            // --- ПОДБОР ---
-            if (Time.time - _spawnTime > _pickupDelay)
+            float delay = GetPickupDelay();
+            if (Time.time - _spawnTime > delay)
             {
-                Transform player = ItemManager.Instance.playerTransform;
+                Transform player = ItemManager.Instance != null ? ItemManager.Instance.playerTransform : null;
                 if (player != null)
                 {
                     float dist = Vector3.Distance(transform.position, player.position);
-                    if (dist < 1.5f) // Радиус подбора
+                    if (dist < 1.5f)
                     {
-                        // Пытаемся положить в инвентарь
                         if (ItemManager.Instance.playerInventory.AddItem(ItemID, Amount))
                         {
                             ItemManager.Instance.ReturnToPool(this);
                         }
                     }
-                    else if (dist < 3.0f) // Радиус "засасывания" (летит к игроку)
+                    else if (dist < 3.0f)
                     {
                         transform.position = Vector3.MoveTowards(transform.position, player.position, Time.deltaTime * 5f);
                     }

@@ -2,30 +2,16 @@ using UnityEngine;
 
 namespace MinecraftEngine
 {
-    /// <summary>
-    /// Full player inventory: 36 main slots (27 main + 9 hotbar),
-    /// 4 armor slots, 1 offhand, 4-slot crafting grid (2x2).
-    /// </summary>
     public class PlayerInventory : MonoBehaviour
     {
-        // === Inventory Layout ===
-        // mainInventory[0..8]   = hotbar (bottom row, visible in HUD)
-        // mainInventory[9..35]  = main inventory (3 rows x 9)
         public ItemStack[] mainInventory = new ItemStack[36];
-
-        // Armor: 0=Helmet, 1=Chestplate, 2=Leggings, 3=Boots
         public ItemStack[] armorSlots = new ItemStack[4];
-
-        // Offhand (shield, totem, map, etc.)
         public ItemStack offhandSlot;
-
-        // 2x2 crafting grid (in player inventory screen)
         public ItemStack[] craftingGrid = new ItemStack[4];
         public ItemStack craftingResult;
 
-        public int selectedSlot = 0; // 0-8 hotbar index
+        public int selectedSlot = 0;
 
-        // === State ===
         public bool IsInventoryOpen { get; private set; } = false;
 
         private bool _isInitialized = false;
@@ -54,14 +40,11 @@ namespace MinecraftEngine
                 return;
             }
 
-            // Inventory toggle works in BOTH Player and UI maps
             var input = InputManager.Instance;
             if (input == null) return;
 
-            // Check for close inventory via Escape (Cancel in UI map) or E (re-press)
             if (IsInventoryOpen)
             {
-                // UI map is active — listen for Cancel (Esc) or re-check Inventory key via keyboard fallback
                 if (UnityEngine.InputSystem.Keyboard.current != null &&
                     (UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame ||
                      UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame))
@@ -79,7 +62,6 @@ namespace MinecraftEngine
             var input = InputManager.Instance;
             if (input == null || !input.IsPlayerMapActive) return;
 
-            // Scroll wheel
             float scroll = input.ScrollHotbar.ReadValue<Vector2>().y;
             if (scroll > 0)
             {
@@ -94,7 +76,6 @@ namespace MinecraftEngine
                 UIManager.Instance.UpdateHotbarUI(GetHotbar(), selectedSlot);
             }
 
-            // Number keys
             int hotbarKey = input.GetHotbarPressed();
             if (hotbarKey >= 0)
             {
@@ -102,18 +83,12 @@ namespace MinecraftEngine
                 UIManager.Instance.UpdateHotbarUI(GetHotbar(), selectedSlot);
             }
 
-            // Toggle inventory (E key)
             if (input.Inventory.WasPressedThisFrame())
             {
                 ToggleInventory();
             }
         }
 
-        // ═══════════════════════════════════════════
-        // PUBLIC API
-        // ═══════════════════════════════════════════
-
-        /// <summary>Returns the 9-slot hotbar array (mainInventory[0..8]).</summary>
         public ItemStack[] GetHotbar()
         {
             ItemStack[] hotbar = new ItemStack[9];
@@ -121,19 +96,16 @@ namespace MinecraftEngine
             return hotbar;
         }
 
-        /// <summary>Returns the ItemID of the selected hotbar slot.</summary>
         public ushort GetSelectedBlockID()
         {
             return mainInventory[selectedSlot].ItemID;
         }
 
-        /// <summary>Returns the selected hotbar ItemStack.</summary>
         public ItemStack GetSelectedItem()
         {
             return mainInventory[selectedSlot];
         }
 
-        /// <summary>Removes 1 item from the selected hotbar slot.</summary>
         public void RemoveItemFromSelectedSlot()
         {
             if (!mainInventory[selectedSlot].IsEmpty)
@@ -147,17 +119,12 @@ namespace MinecraftEngine
             }
         }
 
-        /// <summary>
-        /// Adds items to inventory. Tries existing stacks first, then empty slots.
-        /// Returns true if ALL items were added, false if inventory is full.
-        /// </summary>
         public bool AddItem(ushort itemID, int amount)
         {
             int maxStack = 64;
             if (ItemDatabase.Instance != null)
                 maxStack = ItemDatabase.Instance.GetMaxStackSize(itemID);
 
-            // 1. Try to merge with existing stacks (hotbar first, then main)
             for (int i = 0; i < 36; i++)
             {
                 if (mainInventory[i].ItemID == itemID && mainInventory[i].Amount < maxStack)
@@ -177,7 +144,6 @@ namespace MinecraftEngine
                 }
             }
 
-            // 2. Find empty slots
             if (amount > 0)
             {
                 for (int i = 0; i < 36; i++)
@@ -196,16 +162,10 @@ namespace MinecraftEngine
                 }
             }
 
-            // Partial add — refresh UI anyway
             UIManager.Instance.UpdateHotbarUI(GetHotbar(), selectedSlot);
             return amount <= 0;
         }
 
-        // ═══════════════════════════════════════════
-        // SLOT OPERATIONS (for UI drag & drop)
-        // ═══════════════════════════════════════════
-
-        /// <summary>Get item from any slot index (0-35=main, 36-39=armor, 40=offhand, 41-44=craft grid, 45=craft result).</summary>
         public ItemStack GetSlot(int slotIndex)
         {
             if (slotIndex < 36) return mainInventory[slotIndex];
@@ -216,7 +176,6 @@ namespace MinecraftEngine
             return new ItemStack(0, 0);
         }
 
-        /// <summary>Set item in any slot index.</summary>
         public void SetSlot(int slotIndex, ItemStack stack)
         {
             if (slotIndex < 36) mainInventory[slotIndex] = stack;
@@ -225,11 +184,10 @@ namespace MinecraftEngine
             else if (slotIndex < 45) craftingGrid[slotIndex - 41] = stack;
             else if (slotIndex == 45) craftingResult = stack;
 
-            if (slotIndex < 9) // hotbar changed
+            if (slotIndex < 9)
                 UIManager.Instance.UpdateHotbarUI(GetHotbar(), selectedSlot);
         }
 
-        /// <summary>Swap two slots (for drag & drop).</summary>
         public void SwapSlots(int a, int b)
         {
             ItemStack temp = GetSlot(a);
@@ -237,77 +195,119 @@ namespace MinecraftEngine
             SetSlot(b, temp);
         }
 
-        /// <summary>
-        /// Try to merge cursorStack into targetSlot.
-        /// Returns the remaining cursor stack (may be empty).
-        /// </summary>
         public ItemStack TryMergeIntoSlot(int slotIndex, ItemStack cursorStack)
         {
-            ItemStack target = GetSlot(slotIndex);
+            if (IsArmorSlot(slotIndex))
+            {
+                ItemStack target = GetSlot(slotIndex);
+                if (!target.IsEmpty)
+                {
+                    return cursorStack;
+                }
+                if (CanPlaceInArmorSlot(cursorStack, slotIndex))
+                {
+                    SetSlot(slotIndex, cursorStack);
+                    return new ItemStack(0, 0);
+                }
+                return cursorStack;
+            }
 
-            if (target.IsEmpty)
+            if (slotIndex == 40)
+            {
+                ItemStack target = GetSlot(40);
+                if (!target.IsEmpty && target.ItemID != cursorStack.ItemID)
+                {
+                    return cursorStack;
+                }
+            }
+
+            ItemStack targetSlot = GetSlot(slotIndex);
+
+            if (targetSlot.IsEmpty)
             {
                 SetSlot(slotIndex, cursorStack);
                 return new ItemStack(0, 0);
             }
 
-            if (target.ItemID == cursorStack.ItemID)
+            if (targetSlot.ItemID == cursorStack.ItemID)
             {
                 int maxStack = 64;
                 if (ItemDatabase.Instance != null)
-                    maxStack = ItemDatabase.Instance.GetMaxStackSize(target.ItemID);
+                    maxStack = ItemDatabase.Instance.GetMaxStackSize(targetSlot.ItemID);
 
-                int canAdd = maxStack - target.Amount;
-                if (canAdd <= 0) return cursorStack; // full
+                int canAdd = maxStack - targetSlot.Amount;
+                if (canAdd <= 0) return cursorStack;
 
                 int toAdd = Mathf.Min(canAdd, cursorStack.Amount);
-                target.Amount += (byte)toAdd;
+                targetSlot.Amount += (byte)toAdd;
                 cursorStack.Amount -= (byte)toAdd;
-                SetSlot(slotIndex, target);
+                SetSlot(slotIndex, targetSlot);
 
                 if (cursorStack.Amount <= 0)
                     return new ItemStack(0, 0);
                 return cursorStack;
             }
 
-            // Different items — swap
             SetSlot(slotIndex, cursorStack);
-            return target;
+            return targetSlot;
         }
 
-        /// <summary>
-        /// Shift-click: move item from slot to the other section.
-        /// Hotbar ↔ Main inventory. Container → Inventory.
-        /// </summary>
         public void ShiftClickSlot(int slotIndex)
         {
             ItemStack stack = GetSlot(slotIndex);
             if (stack.IsEmpty) return;
 
-            int targetStart, targetEnd;
+            if (IsArmorSlot(slotIndex))
+            {
+                int targetSlot = GetBestArmorSlot(stack);
+                if (targetSlot >= 0)
+                {
+                    ItemStack existing = GetSlot(targetSlot);
+                    if (existing.IsEmpty)
+                    {
+                        SetSlot(targetSlot, stack);
+                        SetSlot(slotIndex, new ItemStack(0, 0));
+                    }
+                    else
+                    {
+                        SetSlot(slotIndex, existing);
+                        SetSlot(targetSlot, stack);
+                    }
+                }
+                else
+                {
+                    TryMoveToMainInventory(stack, slotIndex);
+                }
+                return;
+            }
+
+            if (slotIndex == 40)
+            {
+                TryMoveToMainInventory(stack, slotIndex);
+                return;
+            }
 
             if (slotIndex < 9)
             {
-                // Hotbar → Main (9-35)
-                targetStart = 9; targetEnd = 36;
+                TryMoveToMainInventory(stack, slotIndex);
             }
             else if (slotIndex < 36)
             {
-                // Main → Hotbar (0-8)
-                targetStart = 0; targetEnd = 9;
+                TryMoveToHotbar(stack, slotIndex);
             }
             else
             {
-                // Armor/Offhand/Crafting → Hotbar first, then Main
-                targetStart = 0; targetEnd = 36;
+                TryMoveToMainInventory(stack, slotIndex);
             }
+        }
 
+        private void TryMoveToMainInventory(ItemStack stack, int fromSlot)
+        {
             int maxStack = 64;
             if (ItemDatabase.Instance != null)
                 maxStack = ItemDatabase.Instance.GetMaxStackSize(stack.ItemID);
 
-            // Try merge first
-            for (int i = targetStart; i < targetEnd && stack.Amount > 0; i++)
+            for (int i = 9; i < 36 && stack.Amount > 0; i++)
             {
                 if (mainInventory[i].ItemID == stack.ItemID && mainInventory[i].Amount < maxStack)
                 {
@@ -318,8 +318,7 @@ namespace MinecraftEngine
                 }
             }
 
-            // Then empty slots
-            for (int i = targetStart; i < targetEnd && stack.Amount > 0; i++)
+            for (int i = 9; i < 36 && stack.Amount > 0; i++)
             {
                 if (mainInventory[i].IsEmpty)
                 {
@@ -330,16 +329,97 @@ namespace MinecraftEngine
             }
 
             if (stack.Amount <= 0)
-                SetSlot(slotIndex, new ItemStack(0, 0));
+                SetSlot(fromSlot, new ItemStack(0, 0));
             else
-                SetSlot(slotIndex, stack);
+                SetSlot(fromSlot, stack);
 
             UIManager.Instance.UpdateHotbarUI(GetHotbar(), selectedSlot);
         }
 
-        // ═══════════════════════════════════════════
-        // INVENTORY TOGGLE
-        // ═══════════════════════════════════════════
+        private void TryMoveToHotbar(ItemStack stack, int fromSlot)
+        {
+            int maxStack = 64;
+            if (ItemDatabase.Instance != null)
+                maxStack = ItemDatabase.Instance.GetMaxStackSize(stack.ItemID);
+
+            for (int i = 0; i < 9 && stack.Amount > 0; i++)
+            {
+                if (mainInventory[i].ItemID == stack.ItemID && mainInventory[i].Amount < maxStack)
+                {
+                    int canAdd = maxStack - mainInventory[i].Amount;
+                    int toAdd = Mathf.Min(canAdd, stack.Amount);
+                    mainInventory[i].Amount += (byte)toAdd;
+                    stack.Amount -= (byte)toAdd;
+                }
+            }
+
+            for (int i = 0; i < 9 && stack.Amount > 0; i++)
+            {
+                if (mainInventory[i].IsEmpty)
+                {
+                    int toPlace = Mathf.Min(stack.Amount, maxStack);
+                    mainInventory[i] = new ItemStack(stack.ItemID, (byte)toPlace, stack.Durability);
+                    stack.Amount -= (byte)toPlace;
+                }
+            }
+
+            if (stack.Amount <= 0)
+                SetSlot(fromSlot, new ItemStack(0, 0));
+            else
+                SetSlot(fromSlot, stack);
+
+            UIManager.Instance.UpdateHotbarUI(GetHotbar(), selectedSlot);
+        }
+
+        private bool IsArmorSlot(int slotIndex)
+        {
+            return slotIndex >= 36 && slotIndex <= 39;
+        }
+
+        private bool CanPlaceInArmorSlot(ItemStack stack, int targetSlot)
+        {
+            if (stack.IsEmpty) return true;
+            if (!IsArmorSlot(targetSlot)) return true;
+
+            int armorSlotIndex = targetSlot - 36;
+
+            if (ItemDatabase.Instance != null)
+            {
+                ItemData itemData = ItemDatabase.Instance.GetItem(stack.ItemID);
+                if (itemData is ArmorData armorData)
+                {
+                    return (int)armorData.slot == armorSlotIndex;
+                }
+            }
+
+            return true;
+        }
+
+        private int GetBestArmorSlot(ItemStack stack)
+        {
+            if (ItemDatabase.Instance == null) return -1;
+
+            ItemData itemData = ItemDatabase.Instance.GetItem(stack.ItemID);
+            if (itemData is ArmorData armorData)
+            {
+                return 36 + (int)armorData.slot;
+            }
+
+            return -1;
+        }
+
+        public ItemStack GetArmor(int slot) => slot >= 0 && slot < 4 ? armorSlots[slot] : new ItemStack(0, 0);
+        public ItemStack GetOffhand() => offhandSlot;
+
+        public void RemoveOffhandItem()
+        {
+            if (!offhandSlot.IsEmpty)
+            {
+                offhandSlot.Amount--;
+                if (offhandSlot.Amount <= 0)
+                    offhandSlot = new ItemStack(0, 0);
+            }
+        }
 
         private ContainerScreen _containerScreen;
 
@@ -369,7 +449,6 @@ namespace MinecraftEngine
                 if (_containerScreen != null)
                     _containerScreen.Hide();
 
-                // Return crafting grid items to inventory
                 for (int i = 0; i < 4; i++)
                 {
                     if (!craftingGrid[i].IsEmpty)
@@ -382,8 +461,6 @@ namespace MinecraftEngine
             }
         }
 
-        /// <summary>Total number of slots for UI indexing.</summary>
         public const int TotalSlots = 46;
-        // 0-8: hotbar, 9-35: main, 36-39: armor, 40: offhand, 41-44: craft grid, 45: craft result
     }
 }

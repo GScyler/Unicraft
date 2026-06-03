@@ -197,7 +197,23 @@ namespace MinecraftEngine
                     int3 placePosition = hitBlock + hitNormal;
                     if (_playerController != null && _playerController.IsBlockIntersectingPlayer(placePosition)) return;
 
+                    // Get block from main hand, fall back to offhand if main hand is empty/non-block
                     ushort selectedBlock = playerInventory != null ? playerInventory.GetSelectedBlockID() : (ushort)0;
+                    bool usedOffhand = false;
+
+                    if (selectedBlock == 0)
+                    {
+                        ItemStack offhand = playerInventory != null ? playerInventory.GetOffhand() : new ItemStack(0, 0);
+                        if (!offhand.IsEmpty)
+                        {
+                            ItemData data = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetItem(offhand.ItemID) : null;
+                            if (data == null || data.type == ItemType.Block)
+                            {
+                                selectedBlock = offhand.ItemID;
+                                usedOffhand = true;
+                            }
+                        }
+                    }
 
                     if (selectedBlock != 0)
                     {
@@ -216,7 +232,10 @@ namespace MinecraftEngine
 
                         if (isSurvivalMode && playerInventory != null)
                         {
-                            playerInventory.RemoveItemFromSelectedSlot();
+                            if (usedOffhand)
+                                playerInventory.RemoveOffhandItem();
+                            else
+                                playerInventory.RemoveItemFromSelectedSlot();
                         }
 
                         _lastPlaceTime = Time.time;
